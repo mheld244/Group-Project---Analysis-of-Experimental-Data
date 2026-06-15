@@ -39,8 +39,4 @@ print(efa.result)
 
 
 
-####
 
-
-
-#2. MULTILEVEL CFA
