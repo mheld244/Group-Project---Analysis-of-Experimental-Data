@@ -1,0 +1,1252 @@
+################################################################################
+
+###################
+# 1. Preparation  #
+###################
+rm(list=ls())
+# Load required packages
+if(!require(mlVAR)){install.packages("mlVAR"); require(mlVAR)} 
+if(!require(qgraph)){install.packages("qgraph"); require(qgraph)} 
+if(!require(nonlinearTseries)){install.packages("nonlinearTseries"); 
+  require(nonlinearTseries)} 
+if(!require(randtests)){install.packages("randtests"); require(randtests)} 
+if(!require(tseries)){install.packages("tseries"); require(tseries)} 
+if(!require(TSA)){install.packages("TSA"); require(TSA)} 
+if(!require(lsr)){install.packages("lsr"); require(lsr)} 
+
+# Set working directory
+setwd("")
+
+# Load data
+dataset <- read.csv("")
+
+####################################################
+# 2. Assumption checks, intra-individual means,    #
+# log-transformation procedure                     #
+####################################################
+
+# Assumption checks (click arrow below) 
+{
+  # BARTELS RANK TEST [rank version of von NEUMANN's Ratio Test for Randomness]
+  # H0: randomness
+  # H1: nonrandomness
+  {
+    rndm_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$DeprMood[dataset$Participant == i], alternative = "two.sided")
+      rndm_p <- c(rndm_p, randomness$p.value)
+    }
+    randomness <- cbind(unique(dataset$Participant),rndm_p)
+    randomness[,2] < 0.05/125
+    
+    rndm_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$Fatigue[dataset$Participant == i], alternative = "two.sided")
+      rndm_p <- c(rndm_p, randomness$p.value)
+    }
+    randomness <- cbind(unique(dataset$Participant),rndm_p)
+    randomness[,2] < 0.05/125
+    
+    rndm_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$Loneliness[dataset$Participant == i], alternative = "two.sided")
+      rndm_p <- c(rndm_p, randomness$p.value)
+    }
+    randomness <- cbind(unique(dataset$Participant),rndm_p)
+    randomness[,2] < 0.05/125
+    
+    rndm_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$Concentrat[dataset$Participant == i], alternative = "two.sided")
+      rndm_p <- c(rndm_p, randomness$p.value)
+    }
+    randomness <- cbind(unique(dataset$Participant),rndm_p)
+    randomness[,2] < 0.05/125
+    
+    rndm_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$LossOfInt[dataset$Participant == i], alternative = "two.sided")
+      rndm_p <- c(rndm_p, randomness$p.value)
+    }
+    randomness <- cbind(unique(dataset$Participant),rndm_p)
+    randomness[,2] < 0.05/125
+    
+    rndm_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$Inferior[dataset$Participant == i], alternative = "two.sided")
+      rndm_p <- c(rndm_p, randomness$p.value)
+    }
+    randomness <- cbind(unique(dataset$Participant),rndm_p)
+    randomness[,2] < 0.05/125
+    
+    rndm_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$Hopeless[dataset$Participant == i], alternative = "two.sided")
+      rndm_p <- c(rndm_p, randomness$p.value)
+    }
+    randomness <- cbind(unique(dataset$Participant),rndm_p)
+    randomness[,2] < 0.05/125
+    
+    rndm_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$Stress[dataset$Participant == i], alternative = "two.sided")
+      rndm_p <- c(rndm_p, randomness$p.value)
+    }
+    randomness <- cbind(unique(dataset$Participant),rndm_p)
+    randomness[,2] < 0.05/125
+    
+    rndm_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$PSMU[dataset$Participant == i], alternative = "two.sided")
+      rndm_p <- c(rndm_p, randomness$p.value)
+    }
+    randomness <- cbind(unique(dataset$Participant),rndm_p)
+    randomness[,2] < 0.05/125
+    
+    rndm_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$Active[dataset$Participant == i], alternative = "two.sided")
+      rndm_p <- c(rndm_p, randomness$p.value)
+    }
+    randomness <- cbind(unique(dataset$Participant),rndm_p)
+    randomness[,2] < 0.05/125
+  }
+  # H0: randomness
+  # H1: trend
+  {
+    trend_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$Fatigue[dataset$Participant == i], alternative = "left.sided")
+      trend_p <- c(trend_p, randomness$p.value)
+    }
+    trend_p <- cbind(unique(dataset$Participant),trend_p)
+    sum(trend_p[,2] < 0.05/125)
+    
+    trend_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$DeprMood[dataset$Participant == i], alternative = "left.sided")
+      trend_p <- c(trend_p, randomness$p.value)
+    }
+    trend_p <- cbind(unique(dataset$Participant),trend_p)
+    sum(trend_p[,2] < 0.05/125, na.rm=T)
+    
+    trend_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$Loneliness[dataset$Participant == i], alternative = "left.sided")
+      trend_p <- c(trend_p, randomness$p.value)
+    }
+    trend_p <- cbind(unique(dataset$Participant),trend_p)
+    sum(trend_p[,2] < 0.05/125, na.rm=T)
+    
+    trend_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$Concentrat[dataset$Participant == i], alternative = "left.sided")
+      trend_p <- c(trend_p, randomness$p.value)
+    }
+    trend_p <- cbind(unique(dataset$Participant),trend_p)
+    sum(trend_p[,2] < 0.05/125, na.rm=T)
+    
+    trend_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$LossOfInt[dataset$Participant == i], alternative = "left.sided")
+      trend_p <- c(trend_p, randomness$p.value)
+    }
+    trend_p <- cbind(unique(dataset$Participant),trend_p)
+    sum(trend_p[,2] < 0.05/125, na.rm=T)
+    
+    trend_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$Inferior[dataset$Participant == i], alternative = "left.sided")
+      trend_p <- c(trend_p, randomness$p.value)
+    }
+    trend_p <- cbind(unique(dataset$Participant),trend_p)
+    sum(trend_p[,2] < 0.05/125, na.rm=T)
+    
+    trend_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$Hopeless[dataset$Participant == i], alternative = "left.sided")
+      trend_p <- c(trend_p, randomness$p.value)
+    }
+    trend_p <- cbind(unique(dataset$Participant),trend_p)
+    sum(trend_p[,2] < 0.05/125, na.rm=T)
+    
+    trend_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$Stress[dataset$Participant == i], alternative = "left.sided")
+      trend_p <- c(trend_p, randomness$p.value)
+    }
+    trend_p <- cbind(unique(dataset$Participant),trend_p)
+    sum(trend_p[,2] < 0.05/125, na.rm=T)
+    
+    trend_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$PSMU[dataset$Participant == i], alternative = "left.sided")
+      trend_p <- c(trend_p, randomness$p.value)
+    }
+    trend_p <- cbind(unique(dataset$Participant),trend_p)
+    sum(trend_p[,2] < 0.05/125, na.rm=T)
+    
+    trend_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$Active[dataset$Participant == i], alternative = "left.sided")
+      trend_p <- c(trend_p, randomness$p.value)
+    }
+    trend_p <- cbind(unique(dataset$Participant),trend_p)
+    sum(trend_p[,2] < 0.05/125, na.rm=T)
+  }
+  # H0: randomness
+  # H1: systematic oscillation
+  {
+    osc_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$Fatigue[dataset$Participant == i], alternative = "right.sided")
+      osc_p <- c(osc_p, randomness$p.value)
+    }
+    osc_p <- cbind(unique(dataset$Participant),osc_p)
+    osc_p[,2] < 0.05/125
+    
+    osc_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$DeprMood[dataset$Participant == i], alternative = "right.sided")
+      osc_p <- c(osc_p, randomness$p.value)
+    }
+    osc_p <- cbind(unique(dataset$Participant),osc_p)
+    osc_p[,2] < 0.05/125
+    
+    osc_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$Loneliness[dataset$Participant == i], alternative = "right.sided")
+      osc_p <- c(osc_p, randomness$p.value)
+    }
+    osc_p <- cbind(unique(dataset$Participant),osc_p)
+    osc_p[,2] < 0.05/125
+    
+    osc_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$Concentrat[dataset$Participant == i], alternative = "right.sided")
+      osc_p <- c(osc_p, randomness$p.value)
+    }
+    osc_p <- cbind(unique(dataset$Participant),osc_p)
+    osc_p[,2] < 0.05/125
+    
+    osc_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$LossOfInt[dataset$Participant == i], alternative = "right.sided")
+      osc_p <- c(osc_p, randomness$p.value)
+    }
+    osc_p <- cbind(unique(dataset$Participant),osc_p)
+    osc_p[,2] < 0.05/125
+    
+    osc_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$Inferior[dataset$Participant == i], alternative = "right.sided")
+      osc_p <- c(osc_p, randomness$p.value)
+    }
+    osc_p <- cbind(unique(dataset$Participant),osc_p)
+    osc_p[,2] < 0.05/125
+    
+    osc_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$Hopeless[dataset$Participant == i], alternative = "right.sided")
+      osc_p <- c(osc_p, randomness$p.value)
+    }
+    osc_p <- cbind(unique(dataset$Participant),osc_p)
+    osc_p[,2] < 0.05/125
+    
+    osc_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$Stress[dataset$Participant == i], alternative = "right.sided")
+      osc_p <- c(osc_p, randomness$p.value)
+    }
+    osc_p <- cbind(unique(dataset$Participant),osc_p)
+    osc_p[,2] < 0.05/125
+    
+    osc_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$PSMU[dataset$Participant == i], alternative = "right.sided")
+      osc_p <- c(osc_p, randomness$p.value)
+    }
+    osc_p <- cbind(unique(dataset$Participant),osc_p)
+    osc_p[,2] < 0.05/125
+    
+    osc_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::bartels.rank.test(dataset$Active[dataset$Participant == i], alternative = "right.sided")
+      osc_p <- c(osc_p, randomness$p.value)
+    }
+    osc_p <- cbind(unique(dataset$Participant),osc_p)
+    osc_p[,2] < 0.05/125
+  }
+  # COX-STUART SIGN TEST 
+  # H0: randomness
+  # H1: upward or downward trend
+  {
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$Fatigue[dataset$Participant == i]), alternative = "two.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$DeprMood[dataset$Participant == i]), alternative = "two.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$Loneliness[dataset$Participant == i]), alternative = "two.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$Concentrat[dataset$Participant == i]), alternative = "two.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$LossOfInt[dataset$Participant == i]), alternative = "two.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$Inferior[dataset$Participant == i]), alternative = "two.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$Hopeless[dataset$Participant == i]), alternative = "two.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$Stress[dataset$Participant == i]), alternative = "two.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$PSMU[dataset$Participant == i]), alternative = "two.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$Active[dataset$Participant == i]), alternative = "two.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+  }
+  # H0: randomness
+  # H1: upward trend
+  {
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$Fatigue[dataset$Participant == i]), alternative = "right.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$DeprMood[dataset$Participant == i]), alternative = "right.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$Loneliness[dataset$Participant == i]), alternative = "right.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$Concentrat[dataset$Participant == i]), alternative = "right.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$LossOfInt[dataset$Participant == i]), alternative = "right.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$Inferior[dataset$Participant == i]), alternative = "right.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$Hopeless[dataset$Participant == i]), alternative = "right.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$Stress[dataset$Participant == i]), alternative = "right.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$PSMU[dataset$Participant == i]), alternative = "right.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$Active[dataset$Participant == i]), alternative = "right.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+  }
+  # H0: randomness
+  # H1: downward trend
+  {
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$Fatigue[dataset$Participant == i]), alternative = "left.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$DeprMood[dataset$Participant == i]), alternative = "left.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$Loneliness[dataset$Participant == i]), alternative = "left.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$Concentrat[dataset$Participant == i]), alternative = "left.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$LossOfInt[dataset$Participant == i]), alternative = "left.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$Inferior[dataset$Participant == i]), alternative = "left.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$Hopeless[dataset$Participant == i]), alternative = "left.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$Stress[dataset$Participant == i]), alternative = "left.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$PSMU[dataset$Participant == i]), alternative = "left.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+    
+    cox_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- randtests::cox.stuart.test(na.exclude(dataset$Active[dataset$Participant == i]), alternative = "left.sided")
+      cox_p <- c(cox_p, randomness$p.value)
+    }
+    cox_p <- cbind(unique(dataset$Participant),cox_p)
+    cox_p[,2] < 0.05/125
+  }
+  # KWIATKOWSKI-PHILLIPS-SCHMIDT-SHIN UNIT ROOT TEST ['reversed' DICKY-FULLER TEST] 
+  # H0: level stationarity
+  # H1: unit root [not level stationary]
+  {
+    
+    kpps_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- tseries::kpss.test(na.exclude(dataset$Fatigue[dataset$Participant == i]), lshort = TRUE, null = "Level")
+      kpps_p <- c(kpps_p, randomness$p.value)
+    }
+    kpps_p  <- cbind(unique(dataset$Participant),kpps_p )
+    kpps_p [,2] < 0.05/125
+    
+    kpps_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- tseries::kpss.test(na.exclude(dataset$Fatigue[dataset$Participant == i]), lshort = TRUE, null = "Level")
+      kpps_p <- c(kpps_p, randomness$p.value)
+    }
+    kpps_p  <- cbind(unique(dataset$Participant),kpps_p )
+    kpps_p [,2] < 0.05/125
+    
+    kpps_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- tseries::kpss.test(na.exclude(dataset$DeprMood[dataset$Participant == i]), lshort = TRUE, null = "Level")
+      kpps_p <- c(kpps_p, randomness$p.value)
+    }
+    kpps_p  <- cbind(unique(dataset$Participant),kpps_p )
+    kpps_p [,2] < 0.05/125
+    
+    kpps_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- tseries::kpss.test(na.exclude(dataset$Loneliness[dataset$Participant == i]), lshort = TRUE, null = "Level")
+      kpps_p <- c(kpps_p, randomness$p.value)
+    }
+    kpps_p  <- cbind(unique(dataset$Participant),kpps_p )
+    kpps_p [,2] < 0.05/125
+    
+    kpps_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- tseries::kpss.test(na.exclude(dataset$Concentrat[dataset$Participant == i]), lshort = TRUE, null = "Level")
+      kpps_p <- c(kpps_p, randomness$p.value)
+    }
+    kpps_p  <- cbind(unique(dataset$Participant),kpps_p )
+    kpps_p [,2] < 0.05/125
+    
+    kpps_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- tseries::kpss.test(na.exclude(dataset$LossOfInt[dataset$Participant == i]), lshort = TRUE, null = "Level")
+      kpps_p <- c(kpps_p, randomness$p.value)
+    }
+    kpps_p  <- cbind(unique(dataset$Participant),kpps_p )
+    kpps_p [,2] < 0.05/125
+    
+    kpps_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- tseries::kpss.test(na.exclude(dataset$Inferior[dataset$Participant == i]), lshort = TRUE, null = "Level")
+      kpps_p <- c(kpps_p, randomness$p.value)
+    }
+    kpps_p  <- cbind(unique(dataset$Participant),kpps_p )
+    kpps_p [,2] < 0.05/125
+    
+    kpps_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- tseries::kpss.test(na.exclude(dataset$Hopeless[dataset$Participant == i]), lshort = TRUE, null = "Level")
+      kpps_p <- c(kpps_p, randomness$p.value)
+    }
+    kpps_p  <- cbind(unique(dataset$Participant),kpps_p )
+    kpps_p [,2] < 0.05/125
+    
+    kpps_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- tseries::kpss.test(na.exclude(dataset$Stress[dataset$Participant == i]), lshort = TRUE, null = "Level")
+      kpps_p <- c(kpps_p, randomness$p.value)
+    }
+    kpps_p  <- cbind(unique(dataset$Participant),kpps_p )
+    kpps_p [,2] < 0.05/125
+    
+    kpps_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- tseries::kpss.test(na.exclude(dataset$PSMU[dataset$Participant == i]), lshort = TRUE, null = "Level")
+      kpps_p <- c(kpps_p, randomness$p.value)
+    }
+    kpps_p  <- cbind(unique(dataset$Participant),kpps_p )
+    kpps_p [,2] < 0.05/125
+    
+    kpps_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- tseries::kpss.test(na.exclude(dataset$Active[dataset$Participant == i]), lshort = TRUE, null = "Level")
+      kpps_p <- c(kpps_p, randomness$p.value)
+    }
+    kpps_p  <- cbind(unique(dataset$Participant),kpps_p )
+    kpps_p[,2] < 0.05/125
+    
+  }
+  ##  KPSS Test for Level Stationarity
+  # H0: trend stationarity 
+  # H1: not trend stationary
+  {
+    
+    kpps_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- tseries::kpss.test(na.exclude(dataset$Fatigue[dataset$Participant == i]), lshort = TRUE, null = "Trend")
+      kpps_p <- c(kpps_p, randomness$p.value)
+    }
+    kpps_p  <- cbind(unique(dataset$Participant),kpps_p )
+    kpps_p [,2] < 0.05/125
+    
+    kpps_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- tseries::kpss.test(na.exclude(dataset$DeprMood[dataset$Participant == i]), lshort = TRUE, null = "Trend")
+      kpps_p <- c(kpps_p, randomness$p.value)
+    }
+    kpps_p  <- cbind(unique(dataset$Participant),kpps_p )
+    kpps_p [,2] < 0.05/125
+    
+    kpps_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- tseries::kpss.test(na.exclude(dataset$Loneliness[dataset$Participant == i]), lshort = TRUE, null = "Trend")
+      kpps_p <- c(kpps_p, randomness$p.value)
+    }
+    kpps_p  <- cbind(unique(dataset$Participant),kpps_p )
+    kpps_p [,2] < 0.05/125
+    
+    kpps_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- tseries::kpss.test(na.exclude(dataset$Concentrat[dataset$Participant == i]), lshort = TRUE, null = "Trend")
+      kpps_p <- c(kpps_p, randomness$p.value)
+    }
+    kpps_p  <- cbind(unique(dataset$Participant),kpps_p )
+    kpps_p [,2] < 0.05/125
+    
+    kpps_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- tseries::kpss.test(na.exclude(dataset$LossOfInt[dataset$Participant == i]), lshort = TRUE, null = "Trend")
+      kpps_p <- c(kpps_p, randomness$p.value)
+    }
+    kpps_p  <- cbind(unique(dataset$Participant),kpps_p )
+    kpps_p [,2] < 0.05/125
+    
+    kpps_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- tseries::kpss.test(na.exclude(dataset$Inferior[dataset$Participant == i]), lshort = TRUE, null = "Trend")
+      kpps_p <- c(kpps_p, randomness$p.value)
+    }
+    kpps_p  <- cbind(unique(dataset$Participant),kpps_p )
+    kpps_p [,2] < 0.05/125
+    
+    kpps_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- tseries::kpss.test(na.exclude(dataset$Hopeless[dataset$Participant == i]), lshort = TRUE, null = "Trend")
+      kpps_p <- c(kpps_p, randomness$p.value)
+    }
+    kpps_p  <- cbind(unique(dataset$Participant),kpps_p )
+    kpps_p [,2] < 0.05/125
+    
+    kpps_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- tseries::kpss.test(na.exclude(dataset$Stress[dataset$Participant == i]), lshort = TRUE, null = "Trend")
+      kpps_p <- c(kpps_p, randomness$p.value)
+    }
+    kpps_p  <- cbind(unique(dataset$Participant),kpps_p )
+    kpps_p [,2] < 0.05/125
+    
+    kpps_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- tseries::kpss.test(na.exclude(dataset$PSMU[dataset$Participant == i]), lshort = TRUE, null = "Trend")
+      kpps_p <- c(kpps_p, randomness$p.value)
+    }
+    kpps_p  <- cbind(unique(dataset$Participant),kpps_p )
+    kpps_p [,2] < 0.05/125
+    
+    kpps_p <- c()
+    for(i in unique(dataset$Participant))
+    {
+      randomness <- tseries::kpss.test(na.exclude(dataset$Active[dataset$Participant == i]), lshort = TRUE, null = "Trend")
+      kpps_p <- c(kpps_p, randomness$p.value)
+    }
+    kpps_p  <- cbind(unique(dataset$Participant),kpps_p )
+    kpps_p [,2] < 0.05/125
+    
+  }
+  # Check distribution of data
+  {
+    pdf("Distribution.pdf")
+    layout(matrix(1:6,3,2))
+    hist(dataset$Fatigue, breaks = 10, xlab = "Response", main = "Fatigue", ylim = c(0,6000))
+    hist(dataset$DeprMood, breaks = 10, xlab = "Response", main = "DeprMood", ylim = c(0,6000))
+    hist(dataset$Loneliness, breaks = 10, xlab = "Response", main = "Loneliness", ylim = c(0,6000))
+    hist(dataset$Concentrat, breaks = 10, xlab = "Response", main = "Concentrat", ylim = c(0,6000))
+    hist(dataset$LossOfInt, breaks = 10, xlab = "Response", main = "LossOfInt", ylim = c(0,6000))
+    hist(dataset$Inferior, breaks = 10, xlab = "Response", main = "Inferior", ylim = c(0,6000))
+    dev.off()
+    pdf("Distribution2.pdf")
+    layout(matrix(1:6,3,2))
+    hist(dataset$Hopeless, breaks = 10, xlab = "Response", main = "Hopeless", ylim = c(0,6000))
+    hist(dataset$Stress, breaks = 10, xlab = "Response", main = "Stress", ylim = c(0,6000))
+    hist(dataset$PSMU, breaks = 10, xlab = "Response", main = "PSMU", ylim = c(0,6000))
+    hist(dataset$Active, breaks = 10, xlab = "Response", main = "ASMU", ylim = c(0,6000))
+    hist(dataset$PSMU, breaks = 10, xlab = "Response", main = "PSMU", ylim = c(0,6000))
+    hist(dataset$Active, breaks = 10, xlab = "Response", main = "ASMU", ylim = c(0,6000))
+    dev.off()
+  }
+  # Normality check
+  {
+    ks.test(dataset$Fatigue, rnorm(length(dataset$Fatigue)))
+    ks.test(dataset$DeprMood, rnorm(length(dataset$DeprMood)))
+    ks.test(dataset$Loneliness, rnorm(length(dataset$Loneliness)))
+    ks.test(dataset$Concentrat, rnorm(length(dataset$Concentrat)))
+    ks.test(dataset$LossOfInt, rnorm(length(dataset$Concentrat)))
+    ks.test(dataset$Inferior, rnorm(length(dataset$Concentrat)))
+    ks.test(dataset$Hopeless, rnorm(length(dataset$Concentrat)))
+    ks.test(dataset$PSMU, rnorm(length(dataset$Concentrat)))
+    ks.test(dataset$Active, rnorm(length(dataset$Concentrat)))
+  }
+  # Normality check for mean levels
+  {
+    mean_levels <- cbind(mean_fatigue,
+                         mean_sadness,
+                         mean_lonely,
+                         mean_concentration,
+                         mean_loi,
+                         mean_inferior,
+                         mean_hopeless,
+                         mean_stress,
+                         mean_psmu,
+                         mean_asmu)
+    for(i in 1:10)
+    {
+      print(colnames(mean_levels)[i])
+      print(shapiro.test(mean_levels[,i]))
+    }
+  }
+}
+# Means & SDs (click arrow below)
+{
+# Stress
+mean_stress <- c()
+sd_stress <- c()
+
+for(i in unique(dataset$Participant))
+{
+  mean_stress <- c(mean_stress, mean(as.numeric(dataset$Stress[dataset$Participant == i]), na.rm =T))
+  sd_stress <- c(sd_stress, sd(as.numeric(dataset$Stress[dataset$Participant == i]), na.rm =T))
+}
+
+mean(mean_stress)
+sd(mean_stress)
+t.test(mean_stress)
+mean(sd_stress)
+sd(sd_stress)
+t.test(sd_stress)
+
+# Sadness
+mean_sadness <- c()
+sd_sadness <- c()
+
+for(i in unique(dataset$Participant))
+{
+  mean_sadness <- c(mean_sadness, mean(as.numeric(dataset$DeprMood[dataset$Participant == i]), na.rm =T))
+  sd_sadness <- c(sd_sadness, sd(as.numeric(dataset$DeprMood[dataset$Participant == i]), na.rm =T))
+}
+
+mean(mean_sadness)
+sd(mean_sadness)
+t.test(mean_sadness)
+mean(sd_sadness)
+sd(sd_sadness)
+t.test(sd_sadness)
+
+# Loss of interest
+mean_loi <- c()
+sd_loi <- c()
+
+for(i in unique(dataset$Participant))
+{
+  mean_loi <- c(mean_loi, mean(as.numeric(dataset$LossOfInt[dataset$Participant == i]), na.rm =T))
+  sd_loi <- c(sd_loi, sd(as.numeric(dataset$LossOfInt[dataset$Participant == i]), na.rm =T))
+}
+
+mean(mean_loi)
+sd(mean_loi)
+t.test(mean_loi)
+mean(sd_loi)
+sd(sd_loi)
+t.test(sd_loi)
+
+# Fatigue
+mean_fatigue <- c()
+sd_fatigue <- c()
+
+for(i in unique(dataset$Participant))
+{
+  mean_fatigue <- c(mean_fatigue, mean(as.numeric(dataset$Fatigue[dataset$Participant == i]), na.rm =T))
+  sd_fatigue <- c(sd_fatigue, sd(as.numeric(dataset$Fatigue[dataset$Participant == i]), na.rm =T))
+}
+
+mean(mean_fatigue)
+sd(mean_fatigue)
+t.test(mean_fatigue)
+mean(sd_fatigue)
+sd(sd_fatigue)
+t.test(sd_fatigue)
+
+# Concentration
+mean_concentration <- c()
+sd_concentration <- c()
+
+for(i in unique(dataset$Participant))
+{
+  mean_concentration <- c(mean_concentration, mean(as.numeric(dataset$Concentrat[dataset$Participant == i]), na.rm =T))
+  sd_concentration <- c(sd_concentration, sd(as.numeric(dataset$Concentrat[dataset$Participant == i]), na.rm =T))
+}
+
+mean(mean_concentration)
+sd(mean_concentration)
+t.test(mean_concentration)
+mean(sd_concentration)
+sd(sd_concentration)
+
+# Loneliness
+mean_lonely <- c()
+sd_lonely <- c()
+
+for(i in unique(dataset$Participant))
+{
+  mean_lonely <- c(mean_lonely, mean(as.numeric(dataset$Loneliness[dataset$Participant == i]), na.rm =T))
+  sd_lonely <- c(sd_lonely, sd(as.numeric(dataset$Loneliness[dataset$Participant == i]), na.rm =T))
+}
+
+mean(mean_lonely)
+sd(mean_lonely)
+t.test(mean_lonely)
+mean(sd_lonely)
+sd(sd_lonely)
+t.test(sd_lonely)
+
+# Inferior
+mean_inferior <- c()
+sd_inferior <- c()
+
+for(i in unique(dataset$Participant))
+{
+  mean_inferior <- c(mean_inferior, mean(as.numeric(dataset$Inferior[dataset$Participant == i]), na.rm =T))
+  sd_inferior <- c(sd_inferior, sd(as.numeric(dataset$Inferior[dataset$Participant == i]), na.rm =T))
+}
+
+mean(mean_inferior)
+sd(mean_inferior)
+t.test(mean_inferior)
+mean(sd_inferior)
+sd(sd_inferior)
+t.test(sd_inferior)
+
+#Hopeless
+mean_hopeless <- c()
+sd_hopeless <- c()
+
+for(i in unique(dataset$Participant))
+{
+  mean_hopeless <- c(mean_hopeless, mean(as.numeric(dataset$Hopeless[dataset$Participant == i]), na.rm =T))
+  sd_hopeless <- c(sd_hopeless, sd(as.numeric(dataset$Hopeless[dataset$Participant == i]), na.rm =T))
+}
+
+t.test(sd_hopeless)
+
+mean(mean_hopeless)
+sd(mean_hopeless)
+t.test(mean_hopeless)
+mean(sd_hopeless)
+sd(sd_hopeless)
+t.test(sd_hopeless)
+
+# PSMU
+mean_psmu <- c()
+sd_psmu <- c()
+
+for(i in unique(dataset$Participant))
+{
+  mean_psmu <- c(mean_psmu, mean(as.numeric(dataset$PSMU[dataset$Participant == i]), na.rm =T))
+  sd_psmu <- c(sd_psmu, sd(as.numeric(dataset$PSMU[dataset$Participant == i]), na.rm =T))
+}
+
+mean(mean_psmu)
+sd(mean_psmu)
+t.test(mean_psmu)
+mean(sd_psmu)
+sd(sd_psmu)
+t.test(sd_psmu)
+
+# ASMI
+mean_asmu <- c()
+sd_asmu <- c()
+
+for(i in unique(dataset$Participant))
+{
+  mean_asmu <- c(mean_asmu, mean(as.numeric(dataset$Active[dataset$Participant == i]), na.rm =T))
+  sd_asmu <- c(sd_asmu, sd(as.numeric(dataset$Active[dataset$Participant == i]), na.rm =T))
+}
+
+mean(mean_asmu)
+sd(mean_asmu)
+t.test(mean_asmu)
+mean(sd_asmu)
+sd(sd_asmu)
+t.test(mean_asmu)
+
+}
+
+# Calculate correlations between intra-individual means
+means <- cor(cbind(mean_fatigue,mean_sadness,mean_lonely,
+                   mean_concentration,mean_loi,mean_inferior,
+                   mean_hopeless,mean_stress,mean_psmu,mean_asmu))
+
+
+means_CI_ES <- cbind(mean_stress,mean_sadness,mean_loi,
+                     mean_fatigue,mean_concentration,mean_lonely,
+                     mean_inferior,mean_hopeless,mean_psmu,mean_asmu)
+
+means_CI_ES
+
+d<-c()
+
+for(i in 1:10)
+{
+  d <- c(d,cohensD(means_CI_ES[,i])) 
+}
+d
+
+CI <- c()
+for(i in 1:10)
+{
+  a <- t.test(means_CI_ES[,i])
+  CI <- c(CI, a$conf.int)
+}
+
+CI_d <- cbind(matrix(CI,10,2,byrow=TRUE),d)
+
+
+sd_CI_ES <- cbind(sd_stress,sd_sadness,sd_loi,
+                     sd_fatigue,sd_concentration,sd_lonely,
+                     sd_inferior,sd_hopeless,sd_psmu,sd_asmu)
+
+sd_CI_ES
+
+install.packages("lsr")
+library(lsr)
+
+d<-c()
+
+for(i in 1:10)
+{
+  d <- c(d,cohensD(sd_CI_ES[,i])) 
+}
+d
+
+CI <- c()
+for(i in 1:10)
+{
+  a <- t.test(sd_CI_ES[,i])
+  CI <- c(CI, a$conf.int)
+}
+
+CI_d <- cbind(matrix(CI,10,2,byrow=TRUE),d)
+
+# Log transformation procedure (click arrow below; not run) 
+{
+# for(i in c(15:23,26))
+# {
+#   dataset[,i] <- scale(dataset[,i], center = TRUE, scale = TRUE)
+# }
+# 
+# skew_before <- c()
+# kurt_before <- c()
+# 
+# for(i in c(15:23,26))
+# {
+#   skew_before <- c(skew_before, skewness(dataset[,i],na.rm=TRUE))
+# }
+# 
+# for(i in c(15:23,26))
+# {
+#   kurt_before <- c(kurt_before, kurtosis(dataset[,i],na.rm=TRUE))
+# }
+# 
+# for(i in c(15:23,26))
+# {
+#   dataset[,i] <- log(dataset[,i]+2, base = 10)  
+# }
+# 
+# for(i in c(15:23,26))
+# {
+#   dataset[,i] <- scale(dataset[,i], center = TRUE, scale = TRUE)
+# }
+# 
+# skew_after <- c()
+# kurt_after <- c()
+# 
+# for(i in c(15:23,26))
+# {
+#   skew_after <- c(skew_after, skewness(dataset[,i],na.rm=TRUE))
+# }
+# 
+# for(i in c(15:23,26))
+# {
+#   kurt_after <- c(kurt_after, kurtosis(dataset[,i],na.rm=TRUE))
+# }
+# 
+# cbind(skew_before, skew_after)
+# cbind(kurt_before, kurt_after)
+# 
+# dataset <- read.csv("")
+# 
+# for(i in c(16,17,20,21))
+# {
+#   dataset[,i] <- log(dataset[,i]+2, base = 10)  
+# }
+# 
+# for(i in c(16,17,20,21))
+# {
+#   dataset[,i] <- scale(dataset[,i], center = TRUE, scale = TRUE)
+# }
+}
+
+
+
+
+######################################
+# 3. Estimate and plot the networks  #
+######################################
+
+# Estimate group-level networks 
+network <- mlVAR(data = dataset,                         # What dataset to load
+                 vars = colnames(dataset)[c(16:24,27)],  # What vars to include
+                 idvar = "Participant",                  # ID variable name
+                 dayvar = "Date",                        # Day variable name
+                 beepvar = "Notification.No")            # Beep variable name
+
+# I always save the estimated network model so I don't have to rerun the model.
+saveRDS(network, "network.RData")                        # How to save network
+network <- readRDS("network.RData")                      # How to read it back
+
+# Create labels, groups and names for variables
+labels <- c(paste("D",1:7, sep = ""),"S1","M1","M2")     # Text inside nodes
+groups <- c(rep("MDD symptoms",7),                       # All groups get a
+            "Stress",rep("Social media use",2))          # unique colour
+names  <- c("Fatigue", "Depressed mood", "Loneliness",   # These names are for
+            "Concentration","Loss of interest",          # the legend. 
+            "Feeling inferior", "Feeling hopeless",      
+            "Stress", "PSMU", "ASMU")                    
+
+# Create new objects for all networks in paper so we can use them to create
+# an average layout for all four of them using the averageLayout() function
+x1 <- plot(network, "contemporaneous", layout = "spring", rule = "and", 
+           nonsig = "hide", groups = groups, legend = FALSE)
+x2 <- plot(network, "temporal", layout = "spring", diag = FALSE, 
+           nonsig = "hide", groups = groups, legend = FALSE)
+x3 <- qgraph(means, layout = "spring", graph = "cor", 
+             sampleSize = 125, minimum = "sig", groups = groups, legend = FALSE)
+x4 <- plot(network, "between", layout = "spring", 
+           nonsig = "hide", groups = groups, legend = FALSE)
+
+# Create averageLayout (we will use this layout for all graphs)
+L <- averageLayout(x1,x2,x3,x4)
+setwd("~/Desktop/")
+# Plot networks in separate plots
+layout(1)
+pdf("Figure 1 PCC network.pdf", height = 5, width = 12.5)
+qgraph(x1, layout = L, groups = groups, labels = labels, nodeNames = names, 
+       vsize = 7, esize = 4, legend = TRUE, legend.mode = "names", 
+       legend.cex = 0.5, color = c(rep("red",7), "dodgerblue",rep("green",2)))
+dev.off()
+pdf("Figure 2 Temporal network.pdf", height = 5, width = 12.5)
+qgraph(x2, layout = L, curve = 0.3, groups = groups, labels = labels, 
+       nodeNames = names, vsize = 7, esize = 4, legend = TRUE, 
+       legend.mode = "names", legend.cex = 0.5,negDashed=TRUE, 
+       color = c(rep("red",7), "dodgerblue",rep("green",2)))
+dev.off()
+
+pdf("New_Figure 3 Between-subjects (partial) correlation.pdf", height = 10, 
+    width = 25)
+layout(matrix(c(1,2),1,2))
+qgraph(means, graph = "cor", sampleSize = 125, layout = L, minimum = "sig", 
+       labels = labels, groups = groups, nodeNames = names, legend = FALSE, 
+       legend.mode = "names", vsize = 7, esize = 4, 
+       color = c(rep("red",7), "dodgerblue",rep("green",2)))
+qgraph(x4, layout = L, groups = groups, labels = labels, nodeNames = names, 
+       vsize = 7, esize = 4, legend = TRUE, legend.mode = "names",negDashed=TRUE, 
+       legend.cex = 1, color = c(rep("red",7), "dodgerblue",rep("green",2)))
+dev.off()
+
+setwd("~/Desktop")
+layout(1)
+dpi=1200    #pixels per square inch
+tiff("Figure1.tiff", width=12.5*dpi, height=5*dpi, res=dpi)
+qgraph(x1, layout = L, groups = groups, labels = labels, nodeNames = names, 
+       vsize = 7, esize = 4, legend = TRUE, legend.mode = "names", 
+       legend.cex = 0.5, color = c(rep("red",7), "dodgerblue",rep("green",2)))
+dev.off()
+tiff("Figure2.tiff", width=12.5*dpi, height=5*dpi, res=dpi)
+qgraph(x2, layout = L, curve = 0.3, groups = groups, labels = labels, 
+       nodeNames = names, vsize = 7, esize = 4, legend = TRUE, 
+       legend.mode = "names", legend.cex = 0.5,negDashed=TRUE, 
+       color = c(rep("red",7), "dodgerblue",rep("green",2)))
+dev.off()
+tiff("Figure3.tiff", width=25*dpi, height=5*dpi, res=dpi)
+layout(matrix(c(1,2),1,2))
+qgraph(means, graph = "cor", sampleSize = 125, layout = L, minimum = "sig", 
+       labels = labels, groups = groups, nodeNames = names, legend = FALSE, 
+       legend.mode = "names", vsize = 7, esize = 4, 
+       color = c(rep("red",7), "dodgerblue",rep("green",2)))
+qgraph(x4, layout = L, groups = groups, labels = labels, nodeNames = names, 
+       vsize = 7, esize = 4, legend = TRUE, legend.mode = "names",negDashed=TRUE, 
+       legend.cex = 1, color = c(rep("red",7), "dodgerblue",rep("green",2)))
+dev.off()
+
+# Get adjacency matrices
+x1_wmat <- getWmat(x1)
+x2_wmat <- getWmat(x2)
+x3_wmat <- getWmat(x3)
+x4_wmat <- getWmat(x4)
+
+# Re-assign self-loops to figure 2 adj matrix
+diag(x2_wmat) <- diag(getWmat(plot(network,"temporal")))
+
+# Write adjacency matrices as .csv files
+write.csv(round(x1_wmat,2),"figure1.csv")
+write.csv(round(x2_wmat,2),"figure2.csv")
+write.csv(round(x3_wmat,2),"figure3.csv")
+write.csv(round(x4_wmat,2),"figure4.csv")
+
+# Plot temporal network with self-loops
+layout(1)
+pdf("Figure 2 Temporal network_with self loops.pdf", height = 5, width = 12.5)
+qgraph(x2_wmat, layout = L, curve = 0.3, groups = groups, labels = labels, 
+       nodeNames = names, vsize = 7, esize = 4, legend = TRUE, 
+       legend.mode = "names", legend.cex = 0.5,negDashed=TRUE, 
+       color = c(rep("red",7), "dodgerblue",rep("green",2)))
+dev.off()
+
+# Save sessionInfo
+info <- sessionInfo()
+saveRDS(info, "sessionInfo.Rdata")
