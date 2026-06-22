@@ -1,9 +1,3 @@
-################################################################################
-# TIME-OF-DAY MODERATION OF mlVAR EDGES (PSMU / ASMU)
-################################################################################
-
-# 0. Packages
-
 if(!require(lme4)){install.packages("lme4"); require(lme4)}
 if(!require(lmerTest)){install.packages("lmerTest"); require(lmerTest)}   # gives Satterthwaite p-values
 if(!require(emmeans)){install.packages("emmeans"); require(emmeans)}     # for simple-slope follow-ups
@@ -69,8 +63,7 @@ if("Date" %in% colnames(dataset)) {
 } else {
   warning("No Date column found -- cannot verify lag-1 validity across day boundaries. ",
           "Proceeding without this check; verify manually.")
-  dataset$valid_lag1 <- TRUE
-}
+  dataset$valid_lag1 <- TRUE}
 
 
 # 2. Edge list to test
@@ -286,12 +279,12 @@ contemp_df$sig_fdr  <- contemp_df$p_fdr  < 0.05
 temporal_df <- temporal_df[order(temporal_df$p_fdr), ]
 contemp_df  <- contemp_df[order(contemp_df$p_fdr), ]
 
-cat("\n\n================ TEMPORAL MODERATION RESULTS ================\n")
+cat("\n\nTEMPORAL MODERATION RESULTS\n")
 print(temporal_df[, c("predictor","outcome","n_obs","estimate","se","t_value",
                       "p_value","p_fdr","sig_fdr","beta_std","partial_r2","converged")],
       digits = 3, row.names = FALSE)
 
-cat("\n\n================ CONTEMPORANEOUS MODERATION RESULTS ================\n")
+cat("\n\nCONTEMPORANEOUS MODERATION RESULTS\n")
 print(contemp_df[, c("predictor","outcome","n_obs","estimate","se","t_value",
                      "p_value","p_fdr","sig_fdr","beta_std","partial_r2","converged")],
       digits = 3, row.names = FALSE)
@@ -329,7 +322,7 @@ get_simple_slopes <- function(pred, out, network = c("temporal","contemporaneous
 sig_temporal <- temporal_df[temporal_df$sig_fdr & !is.na(temporal_df$sig_fdr), ]
 sig_contemp  <- contemp_df[contemp_df$sig_fdr & !is.na(contemp_df$sig_fdr), ]
 
-cat("\n\n================ SIMPLE SLOPES FOR SIGNIFICANT TEMPORAL MODERATIONS ================\n")
+cat("\n\nSIMPLE SLOPES FOR SIGNIFICANT TEMPORAL MODERATIONS\n")
 if(nrow(sig_temporal) > 0) {
   for(r in seq_len(nrow(sig_temporal))) {
     pr <- sig_temporal$predictor[r]; ou <- sig_temporal$outcome[r]
