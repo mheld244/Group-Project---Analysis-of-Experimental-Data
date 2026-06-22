@@ -1,0 +1,355 @@
+################################################################################
+# TIME-OF-DAY MODERATION OF mlVAR EDGES (PSMU / ASMU)
+################################################################################
+
+# 0. Packages
+
+if(!require(lme4)){install.packages("lme4"); require(lme4)}
+if(!require(lmerTest)){install.packages("lmerTest"); require(lmerTest)}   # gives Satterthwaite p-values
+if(!require(emmeans)){install.packages("emmeans"); require(emmeans)}     # for simple-slope follow-ups
+if(!require(effectsize)){install.packages("effectsize"); require(effectsize)}
+if(!require(performance)){install.packages("performance"); require(performance)} # convergence checks
+if(!require(mlVAR)){install.packages("mlVAR"); require(mlVAR)} 
+if(!require(qgraph)){install.packages("qgraph"); require(qgraph)} 
+if(!require(tidyr)){install.packages("tidyr"); require(tidyr)} 
+if(!require(dplyr)){install.packages("dplyr"); require(dplyr)}
+
+# 1. Data prep
+
+dataset <- read.csv("OSF_socialmedia_data.csv")
+
+dataset$hour <- as.integer(substr(dataset$Time, 1, 2))
+table(dataset$hour)
+
+dataset$time_block <- ifelse(dataset$hour <= 17, "early", "late")
+dataset$time_block <- factor(dataset$time_block, levels = c("early", "late"))
+table(dataset$time_block)
+
+dataset$Date <- as.Date(dataset$Date, "%m/%d/%Y")
+dataset <- dataset[order(dataset$Participant, dataset$Date, dataset$Notification.No), ]
+
+
+node_vars <- colnames(dataset)[c(15:23, 26)]
+
+#lag1 (source-beep) versions of every node variable, and lag of time_block
+for(v in node_vars) {
+  lag_col <- paste0(v, "_lag1")
+  dataset[[lag_col]] <- NA
+  for(i in unique(dataset$Participant)) {
+    idx <- which(dataset$Participant == i)
+    if(length(idx) > 1) {
+      dataset[[lag_col]][idx[-1]] <- dataset[[v]][idx[-length(idx)]]}}}
+
+
+dataset$time_block_lag1 <- NA
+for(i in unique(dataset$Participant)) {
+  idx <- which(dataset$Participant == i)
+  if(length(idx) > 1) {
+    dataset$time_block_lag1[idx[-1]] <- as.character(dataset$time_block[idx[-length(idx)]])
+  }
+}
+dataset$time_block_lag1 <- factor(dataset$time_block_lag1, levels = c("early", "late"))
+
+table(dataset$time_block_lag1, useNA = "ifany")
+
+
+##Check if days are skipped
+if("Date" %in% colnames(dataset)) {
+  dataset$Date <- as.Date(dataset$Date, "%m/%d/%Y")
+  dataset$day_gap <- NA
+  for(i in unique(dataset$Participant)) {
+    idx <- which(dataset$Participant == i)
+    if(length(idx) > 1) {
+      dataset$day_gap[idx[-1]] <- as.numeric(dataset$Date[idx[-1]] - dataset$Date[idx[-length(idx)]])
+    }
+  }
+  cat("\nDistribution of day-gaps between consecutive rows (0 = same day, 1 = next day, >1 = a day was skipped):\n")
+  print(table(dataset$day_gap, useNA = "ifany"))
+  dataset$valid_lag1 <- !is.na(dataset$day_gap) & dataset$day_gap %in% c(0, 1)
+} else {
+  warning("No Date column found -- cannot verify lag-1 validity across day boundaries. ",
+          "Proceeding without this check; verify manually.")
+  dataset$valid_lag1 <- TRUE
+}
+
+
+# 2. Edge list to test
+focal <- c("PSMU", "Active")
+other_vars <- setdiff(node_vars, focal)
+
+# Temporal: (focal as predictor -> any outcome) + (any predictor -> focal as outcome)
+temporal_edges <- unique(rbind(
+  expand.grid(predictor = focal, outcome = node_vars, stringsAsFactors = FALSE),
+  expand.grid(predictor = node_vars, outcome = focal, stringsAsFactors = FALSE)
+))
+temporal_edges <- temporal_edges[!duplicated(temporal_edges), ]
+
+contemp_pairs <- unique(rbind(
+  expand.grid(var1 = focal, var2 = node_vars, stringsAsFactors = FALSE),
+  expand.grid(var1 = node_vars, var2 = focal, stringsAsFactors = FALSE)
+))
+contemp_pairs <- contemp_pairs[contemp_pairs$var1 != contemp_pairs$var2, ]
+contemp_pairs <- contemp_pairs[!duplicated(contemp_pairs), ]
+# contemp_pairs$var2 as outcome, var1 as the predictor
+
+cat("\nNumber of temporal edge-models to fit: ", nrow(temporal_edges), "\n")
+cat("Number of contemporaneous edge-models to fit: ", nrow(contemp_pairs), "\n")
+
+
+# 3. Effect size helpers
+
+get_effect_sizes <- function(d_sub, formula_full, formula_reduced, interaction_term) {
+ 
+  std_data <- d_sub
+  numeric_cols <- vapply(std_data, is.numeric, logical(1))
+  std_data[numeric_cols] <- scale(std_data[numeric_cols])
+  
+  m_full_std <- tryCatch(
+    lmerTest::lmer(as.formula(formula_full), data = std_data, REML = FALSE,
+                   control = lme4::lmerControl(optimizer = "bobyqa")), error = function(e) NULL)
+  
+  es1_beta <- NA_real_
+  es1_se   <- NA_real_
+  if(!is.null(m_full_std)) {
+    co <- summary(m_full_std)$coefficients
+    if(interaction_term %in% rownames(co)) {
+      es1_beta <- co[interaction_term, "Estimate"]
+      es1_se   <- co[interaction_term, "Std. Error"]}}
+  
+  m_full_raw <- tryCatch(
+    lmerTest::lmer(as.formula(formula_full), data = d_sub, REML = FALSE,
+                   control = lme4::lmerControl(optimizer = "bobyqa")),error = function(e) NULL)
+  m_red_raw <- tryCatch(
+    lmerTest::lmer(as.formula(formula_reduced), data = d_sub, REML = FALSE,
+                   control = lme4::lmerControl(optimizer = "bobyqa")),error = function(e) NULL)
+  
+  es2_partial_r2 <- NA_real_
+  if(!is.null(m_full_raw) && !is.null(m_red_raw)) {
+    r2_full <- tryCatch(performance::r2(m_full_raw)$R2_marginal, error = function(e) NA_real_)
+    r2_red  <- tryCatch(performance::r2(m_red_raw)$R2_marginal,  error = function(e) NA_real_)
+    if(!is.na(r2_full) && !is.na(r2_red)) {
+      # Partial R^2 of the added term, relative to residual variance left
+      # after the reduced model: (R2_full - R2_red) / (1 - R2_red)
+      es2_partial_r2 <- (r2_full - r2_red) / (1 - r2_red)}}
+   list(beta_std = es1_beta, se_std = es1_se, partial_r2 = es2_partial_r2,
+       m_full_raw = m_full_raw, m_red_raw = m_red_raw)}
+
+# 4. TEMPORAL moderation models
+temporal_results <- list()
+
+for(r in seq_len(nrow(temporal_edges))) {
+  pred <- temporal_edges$predictor[r]
+  out  <- temporal_edges$outcome[r]
+  
+  pred_lag <- paste0(pred, "_lag1")
+  covars   <- setdiff(node_vars, c(pred, out))   # other nodes, by base name
+  covars_lag <- paste0(covars, "_lag1")
+  
+  needed_cols <- c(out, pred_lag, "time_block_lag1", covars_lag, "Participant", "valid_lag1")
+  d_sub <- dataset[dataset$valid_lag1 &
+                     stats::complete.cases(dataset[, needed_cols]), ]
+  
+  
+  rhs_covars <- paste(covars_lag, collapse = " + ")
+  interaction_term_name <- paste0(pred_lag, ":time_block_lag1late")
+  
+  formula_full <- sprintf("%s ~ %s * time_block_lag1 + %s + (1 | Participant)",
+                          out, pred_lag, rhs_covars)
+  formula_reduced <- sprintf("%s ~ %s + time_block_lag1 + %s + (1 | Participant)",
+                             out, pred_lag, rhs_covars)
+  
+  m_full <- tryCatch(
+    lmerTest::lmer(as.formula(formula_full), data = d_sub, REML = FALSE,
+                   control = lme4::lmerControl(optimizer = "bobyqa")), error = function(e) NULL, warning = function(w) NULL)
+  m_reduced <- tryCatch(
+    lmerTest::lmer(as.formula(formula_reduced), data = d_sub, REML = FALSE,
+                   control = lme4::lmerControl(optimizer = "bobyqa")), error = function(e) NULL, warning = function(w) NULL)
+  
+  if(is.null(m_full) || is.null(m_reduced)) {
+    warning(sprintf("Model fit failed for temporal edge %s_lag1 -> %s", pred, out))
+    next}
+  
+  # Convergence check -- flag, don't silently trust, singular/non-converged fits
+  conv_ok <- tryCatch({
+    is.null(m_full@optinfo$conv$lme4$messages)
+  }, error = function(e) NA)
+  
+  co <- summary(m_full)$coefficients  # lmerTest gives Satterthwaite df + p-values
+  if(!(interaction_term_name %in% rownames(co))) {
+    warning(sprintf("Interaction term not found in model for %s_lag1 -> %s (check factor coding)",
+                    pred, out))
+    next}
+  
+  est <- co[interaction_term_name, "Estimate"]
+  se  <- co[interaction_term_name, "Std. Error"]
+  df  <- co[interaction_term_name, "df"]
+  tval<- co[interaction_term_name, "t value"]
+  pval<- co[interaction_term_name, "Pr(>|t|)"]
+  
+  es <- get_effect_sizes(d_sub, formula_full, formula_reduced, interaction_term_name)
+  
+  key <- paste0(pred, "_lag1 -> ", out)
+  temporal_results[[key]] <- data.frame(
+    predictor = pred, outcome = out, network = "temporal",
+    n_obs = nrow(d_sub), n_participants = length(unique(d_sub$Participant)),
+    estimate = est, se = se, df = df, t_value = tval, p_value = pval,
+    beta_std = es$beta_std, partial_r2 = es$partial_r2,
+    converged = conv_ok,
+    stringsAsFactors = FALSE)
+  
+  cat(sprintf("Fitted temporal: %-30s p = %.4f\n", key, pval))}
+
+temporal_df <- do.call(rbind, temporal_results)
+rownames(temporal_df) <- NULL
+
+
+# 5. CONTEMPORANEOUS moderation models
+contemp_results <- list()
+
+for(r in seq_len(nrow(contemp_pairs))) {
+  pred <- contemp_pairs$var1[r]
+  out  <- contemp_pairs$var2[r]
+  
+  covars <- setdiff(node_vars, c(pred, out))
+  
+  needed_cols <- c(out, pred, "time_block", covars, "Participant")
+  d_sub <- dataset[stats::complete.cases(dataset[, needed_cols]), ]
+  
+  if(nrow(d_sub) < 50 || length(unique(d_sub$Participant)) < 10) {
+    warning(sprintf("Skipping contemporaneous edge %s -> %s: insufficient data (n=%d, participants=%d)",
+                    pred, out, nrow(d_sub), length(unique(d_sub$Participant))))
+    next}
+  
+  rhs_covars <- paste(covars, collapse = " + ")
+  interaction_term_name <- paste0(pred, ":time_blocklate")
+  
+  formula_full <- sprintf("%s ~ %s * time_block + %s + (1 | Participant)",
+                          out, pred, rhs_covars)
+  formula_reduced <- sprintf("%s ~ %s + time_block + %s + (1 | Participant)",
+                             out, pred, rhs_covars)
+  
+  m_full <- tryCatch(
+    lmerTest::lmer(as.formula(formula_full), data = d_sub, REML = FALSE,
+                   control = lme4::lmerControl(optimizer = "bobyqa")),
+    error = function(e) NULL, warning = function(w) NULL)
+  m_reduced <- tryCatch(
+    lmerTest::lmer(as.formula(formula_reduced), data = d_sub, REML = FALSE,
+                   control = lme4::lmerControl(optimizer = "bobyqa")),
+    error = function(e) NULL, warning = function(w) NULL)
+  
+  if(is.null(m_full) || is.null(m_reduced)) {
+    warning(sprintf("Model fit failed for contemporaneous edge %s -> %s", pred, out))
+    next}
+  
+  conv_ok <- tryCatch({
+    is.null(m_full@optinfo$conv$lme4$messages)},
+    error = function(e) NA)
+  
+  co <- summary(m_full)$coefficients
+  if(!(interaction_term_name %in% rownames(co))) {
+    warning(sprintf("Interaction term not found in model for %s -> %s (check factor coding)",pred, out))
+    next}
+  
+  est <- co[interaction_term_name, "Estimate"]
+  se  <- co[interaction_term_name, "Std. Error"]
+  df  <- co[interaction_term_name, "df"]
+  tval<- co[interaction_term_name, "t value"]
+  pval<- co[interaction_term_name, "Pr(>|t|)"]
+  
+  es <- get_effect_sizes(d_sub, formula_full, formula_reduced, interaction_term_name)
+  
+  key <- paste0(pred, " -- ", out, " (as outcome)")
+  contemp_results[[key]] <- data.frame(
+    predictor = pred, outcome = out, network = "contemporaneous",
+    n_obs = nrow(d_sub), n_participants = length(unique(d_sub$Participant)),
+    estimate = est, se = se, df = df, t_value = tval, p_value = pval,
+    beta_std = es$beta_std, partial_r2 = es$partial_r2,
+    converged = conv_ok,
+    stringsAsFactors = FALSE)
+  cat(sprintf("Fitted contemporaneous: %-35s p = %.4f\n", key, pval))}
+
+contemp_df <- do.call(rbind, contemp_results)
+rownames(contemp_df) <- NULL
+
+
+# 6. Multiple comparisons correction
+temporal_df$p_fdr  <- p.adjust(temporal_df$p_value, method = "BH")
+contemp_df$p_fdr   <- p.adjust(contemp_df$p_value,  method = "BH")
+
+
+temporal_df$sig_fdr <- temporal_df$p_fdr < 0.05
+contemp_df$sig_fdr  <- contemp_df$p_fdr  < 0.05
+
+
+
+# 7. Results
+temporal_df <- temporal_df[order(temporal_df$p_fdr), ]
+contemp_df  <- contemp_df[order(contemp_df$p_fdr), ]
+
+cat("\n\n================ TEMPORAL MODERATION RESULTS ================\n")
+print(temporal_df[, c("predictor","outcome","n_obs","estimate","se","t_value",
+                      "p_value","p_fdr","sig_fdr","beta_std","partial_r2","converged")],
+      digits = 3, row.names = FALSE)
+
+cat("\n\n================ CONTEMPORANEOUS MODERATION RESULTS ================\n")
+print(contemp_df[, c("predictor","outcome","n_obs","estimate","se","t_value",
+                     "p_value","p_fdr","sig_fdr","beta_std","partial_r2","converged")],
+      digits = 3, row.names = FALSE)
+
+write.csv(temporal_df, "temporal_moderation_results.csv", row.names = FALSE)
+write.csv(contemp_df,  "contemporaneous_moderation_results.csv", row.names = FALSE)
+
+
+
+# 8. simple slopes
+get_simple_slopes <- function(pred, out, network = c("temporal","contemporaneous")) {
+  network <- match.arg(network)
+  covars <- setdiff(node_vars, c(pred, out))
+  
+  if(network == "temporal") {
+    pred_col   <- paste0(pred, "_lag1")
+    mod_col    <- "time_block_lag1"
+    covars_col <- paste0(covars, "_lag1")
+    needed <- c(out, pred_col, mod_col, covars_col, "Participant", "valid_lag1")
+    d_sub <- dataset[dataset$valid_lag1 & stats::complete.cases(dataset[, needed]), ]}
+  else {
+    pred_col   <- pred
+    mod_col    <- "time_block"
+    covars_col <- covars
+    needed <- c(out, pred_col, mod_col, covars_col, "Participant")
+    d_sub <- dataset[stats::complete.cases(dataset[, needed]), ]}
+  
+  rhs_covars <- paste(covars_col, collapse = " + ")
+  f <- sprintf("%s ~ %s * %s + %s + (1 | Participant)", out, pred_col, mod_col, rhs_covars)
+  m <- lmerTest::lmer(as.formula(f), data = d_sub, REML = FALSE,
+                      control = lme4::lmerControl(optimizer = "bobyqa"))
+  emtrends_out <- emmeans::emtrends(m, specs = mod_col, var = pred_col)
+  list(model = m, simple_slopes = summary(emtrends_out, infer = c(TRUE, TRUE)))}
+
+sig_temporal <- temporal_df[temporal_df$sig_fdr & !is.na(temporal_df$sig_fdr), ]
+sig_contemp  <- contemp_df[contemp_df$sig_fdr & !is.na(contemp_df$sig_fdr), ]
+
+cat("\n\n================ SIMPLE SLOPES FOR SIGNIFICANT TEMPORAL MODERATIONS ================\n")
+if(nrow(sig_temporal) > 0) {
+  for(r in seq_len(nrow(sig_temporal))) {
+    pr <- sig_temporal$predictor[r]; ou <- sig_temporal$outcome[r]
+    cat(sprintf("\n--- %s_lag1 -> %s ---\n", pr, ou))
+    ss <- tryCatch(get_simple_slopes(pr, ou, "temporal"), error = function(e) NULL)
+    if(!is.null(ss)) print(ss$simple_slopes)}}
+  else {cat("No temporal moderation effects survived FDR correction.\n")}
+
+cat("\n\nSIMPLE SLOPES FOR SIGNIFICANT CONTEMPORANEOUS MODERATIONS\n")
+if(nrow(sig_contemp) > 0) {
+  for(r in seq_len(nrow(sig_contemp))) {
+    pr <- sig_contemp$predictor[r]; ou <- sig_contemp$outcome[r]
+    cat(sprintf("\n--- %s -- %s (same beep) ---\n", pr, ou))
+    ss <- tryCatch(get_simple_slopes(pr, ou, "contemporaneous"), error = function(e) NULL)
+    if(!is.null(ss)) print(ss$simple_slopes)}} 
+  else {cat("No contemporaneous moderation effects survived FDR correction.\n")}
+
+
+# 9. Convergence tests
+cat("Temporal models with convergence warnings:", sum(!temporal_df$converged, na.rm = TRUE),
+    "of", nrow(temporal_df), "\n")
+cat("Contemporaneous models with convergence warnings:", sum(!contemp_df$converged, na.rm = TRUE),
+    "of", nrow(contemp_df), "\n")
